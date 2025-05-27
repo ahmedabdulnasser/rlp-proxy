@@ -1,10 +1,21 @@
 require('dotenv').config();
 import express, { Response } from 'express';
+import cors from 'cors';
 import { getMetadata } from './lib';
 import { checkForCache, createCache } from './lib/cache';
 import { APIOutput } from './types';
 
 const app = express();
+
+// Enable CORS for all origins and all methods
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: false,
+  })
+);
 
 const port = Number(process.env.PORT || 8080);
 
@@ -30,16 +41,10 @@ limiter({
 
 const sendResponse = (res: Response, output: APIOutput | null) => {
   if (!output) {
-    return res
-      .set('Access-Control-Allow-Origin', '*')
-      .status(404)
-      .json({ metadata: null });
+    return res.status(404).json({ metadata: null });
   }
 
-  return res
-    .set('Access-Control-Allow-Origin', '*')
-    .status(200)
-    .json({ metadata: output });
+  return res.status(200).json({ metadata: output });
 };
 
 app.listen(port, () => {
@@ -51,10 +56,7 @@ app.use(express.static('public'));
 app.get('/', async (req, res) => {
   const url = req.query.url as unknown as string;
   const metadata = await getMetadata(url);
-  return res
-    .set('Access-Control-Allow-Origin', '*')
-    .status(200)
-    .json({ metadata });
+  return res.status(200).json({ metadata });
 });
 
 app.get('/v2', async (req, res) => {
@@ -62,10 +64,7 @@ app.get('/v2', async (req, res) => {
     let url = req.query.url as unknown as string;
 
     if (!url) {
-      return res
-        .set('Access-Control-Allow-Origin', '*')
-        .status(400)
-        .json({ error: 'Invalid URL' });
+      return res.status(400).json({ error: 'Invalid URL' });
     }
 
     url = url.indexOf('://') === -1 ? 'http://' + url : url;
@@ -76,10 +75,7 @@ app.get('/v2', async (req, res) => {
       );
 
     if (!url || !isUrlValid) {
-      return res
-        .set('Access-Control-Allow-Origin', '*')
-        .status(400)
-        .json({ error: 'Invalid URL' });
+      return res.status(400).json({ error: 'Invalid URL' });
     }
 
     if (url && isUrlValid) {
@@ -91,10 +87,7 @@ app.get('/v2', async (req, res) => {
       const cached = await checkForCache(url);
 
       if (cached) {
-        return res
-          .set('Access-Control-Allow-Origin', '*')
-          .status(200)
-          .json({ metadata: cached });
+        return res.status(200).json({ metadata: cached });
       }
 
       const metadata = await getMetadata(url);
@@ -139,7 +132,7 @@ app.get('/v2', async (req, res) => {
     }
   } catch (error) {
     console.log(error);
-    return res.set('Access-Control-Allow-Origin', '*').status(500).json({
+    return res.status(500).json({
       error:
         'Internal server error. Please open a Github issue or contact me on Twitter @dhaiwat10 if the issue persists.',
     });
